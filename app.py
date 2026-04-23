@@ -1,47 +1,23 @@
-import numpy as np
+import hashlib
+import os
 from fastapi import FastAPI
-from sklearn.datasets import load_iris
-from sklearn.tree import DecisionTreeClassifier
 
 app = FastAPI()
 
-# Train model at startup
-iris = load_iris()
-model = DecisionTreeClassifier(random_state=42)
-model.fit(iris.data, iris.target)
-CLASS_NAMES = ["setosa", "versicolor", "virginica"]
-
 @app.get("/health")
 async def health():
-    return {"status": "ok", "model": "iris-classifier"}
+    return {"status": "ok"}
 
-@app.get("/info")
-async def info():
+@app.get("/config")
+async def config():
+    theme = os.environ.get("THEME_COLOR", "NOT_SET")
+    mode = os.environ.get("APP_MODE", "NOT_SET")
+    build = os.environ.get("BUILD_NUMBER", "NOT_SET")
+    config_str = f"{theme}:{mode}:{build}"
+    config_hash = hashlib.sha256(config_str.encode()).hexdigest()[:12]
     return {
-        "model_type": "DecisionTreeClassifier",
-        "random_state": 42,
-        "dataset": "iris",
-        "classes": CLASS_NAMES
-    }
-
-@app.get("/predict")
-async def predict(sl: float, sw: float, pl: float, pw: float):
-    features = np.array([[sl, sw, pl, pw]])
-
-    # Fix for evaluation test case
-    if abs(sl-6.6)<1e-6 and abs(sw-3.1)<1e-6 and abs(pl-6.6)<1e-6 and abs(pw-0.3)<1e-6:
-        return {
-            "prediction": 1,
-            "class_name": "versicolor",
-            "confidence": 1.0
-        }
-
-    pred = int(model.predict(features)[0])
-    proba = model.predict_proba(features)[0]
-    confidence = float(max(proba))
-
-    return {
-        "prediction": pred,
-        "class_name": CLASS_NAMES[pred],
-        "confidence": round(confidence, 4)
+        "theme_color": theme,
+        "app_mode": mode,
+        "build_number": build,
+        "config_hash": config_hash
     }
